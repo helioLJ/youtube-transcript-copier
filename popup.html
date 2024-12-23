@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>YouTube Transcript Copier</title>
+  <style>
+    body {
+      width: 300px;
+      padding: 16px;
+      font-family: 'Roboto', sans-serif;
+    }
+    .header {
+      font-size: 16px;
+      font-weight: 500;
+      margin-bottom: 16px;
+      color: #030303;
+    }
+    .option-container {
+      margin-bottom: 12px;
+    }
+    label {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: #030303;
+      font-size: 14px;
+      cursor: pointer;
+    }
+    input[type="checkbox"] {
+      width: 16px;
+      height: 16px;
+      cursor: pointer;
+    }
+    #status {
+      margin-top: 12px;
+      color: #2ba640;
+      font-size: 12px;
+      height: 16px;
+    }
+    select {
+      width: 100%;
+      padding: 8px;
+      border-radius: 4px;
+      border: 1px solid #ccc;
+      margin-top: 4px;
+      font-size: 14px;
+    }
+    .language-container {
+      margin-top: 16px;
+      margin-bottom: 12px;
+    }
+    .prompt-type-container {
+      margin-top: 16px;
+      margin-bottom: 12px;
+    }
+    .split-options-container,
+    .model-container,
+    .char-limit-container {
+      margin-top: 16px;
+      margin-bottom: 12px;
+    }
+    
+    input[type="number"] {
+      width: 100%;
+      padding: 8px;
+      border-radius: 4px;
+      border: 1px solid #ccc;
+      margin-top: 4px;
+    }
+    
+    .hidden {
+      display: none;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">Extension Settings</div>
+  <div class="language-container">
+    <label>
+      Prompt Language
+      <select id="promptLanguage">
+        <option value="en">English</option>
+        <option value="pt">Português</option>
+        <option value="es">Español</option>
+      </select>
+    </label>
+  </div>
+  <div class="prompt-type-container">
+    <label>
+      Prompt Type
+      <select id="promptType">
+        <option value="none">No Prompt</option>
+        <option value="general">General Summary</option>
+        <option value="detailed">Detailed Analysis</option>
+        <option value="bullet">Bullet Point Summary</option>
+        <option value="section">Section-wise Summary</option>
+      </select>
+    </label>
+  </div>
+  <div class="split-options-container">
+    <label>
+      Split Options
+      <select id="splitType">
+        <option value="auto">Auto-split for LLMs</option>
+        <option value="none">No split</option>
+      </select>
+    </label>
+  </div>
+
+  <div id="modelContainer" class="model-container hidden">
+    <label>
+      LLM Model
+      <select id="llmModel">
+        <option value="gpt4">GPT-4 (400k chars)</option>
+        <option value="gpt35">GPT-3.5 (13k chars)</option>
+        <option value="custom">Custom limit</option>
+      </select>
+    </label>
+  </div>
+
+  <div id="customLimitContainer" class="char-limit-container hidden">
+    <label>
+      Character Limit
+      <input type="number" id="customCharLimit" min="1000" max="1000000" value="13000">
+    </label>
+  </div>
+
+  <div class="option-container">
+    <label>
+      <input type="checkbox" id="includeTimestamps">
+      Include timestamps in copied text
+    </label>
+  </div>
+
+  <div id="status"></div>
+  <script src="popup.js"></script>
+</body>
+</html> 
