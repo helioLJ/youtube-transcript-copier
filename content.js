@@ -1,5 +1,13 @@
 console.log('Content script loaded'); // Debug log
 
+// Get interface language from storage
+const getInterfaceLanguage = async () => {
+  const result = await chrome.storage.sync.get({
+    interfaceLanguage: 'en'
+  });
+  return result.interfaceLanguage;
+};
+
 const createNotificationSystem = () => {
   const notificationContainer = document.createElement('div');
   notificationContainer.style.cssText = `
@@ -14,7 +22,8 @@ const createNotificationSystem = () => {
   document.body.appendChild(notificationContainer);
 
   return {
-    show: ({ message, type = 'info', duration = 3000, actions = [] }) => {
+    show: async ({ message, type = 'info', duration = 3000, actions = [] }) => {
+      const interfaceLanguage = await getInterfaceLanguage();
       const notification = document.createElement('div');
       notification.style.cssText = `
         background-color: ${type === 'warning' ? '#ffd700' : '#2ba640'};
@@ -81,24 +90,136 @@ const createNotificationSystem = () => {
 // Initialize notification system
 const notify = createNotificationSystem();
 
-const addCopyButton = () => {
-  const existingButton = document.querySelector("#copy-transcription-button");
+// Listen for changes in storage
+chrome.storage.onChanged.addListener((changes, namespace) => {
+  if (changes.interfaceLanguage) {
+    // Update button text when language changes
+    const copyButton = document.querySelector("#copy-transcription-button");
+    if (copyButton) {
+      const textDiv = copyButton.querySelector(".yt-spec-button-shape-next__button-text-content");
+      if (textDiv) {
+        textDiv.textContent = translations[changes.interfaceLanguage.newValue].buttonText;
+      }
+    }
+  }
+});
+
+const translations = {
+  en: {
+    buttonText: "Copy Transcript",
+    loadingText: "Copying...",
+    successText: (chars) => `Copied ${formatCharCount(chars)} chars!`,
+    errorTooLong: "This transcript is quite long. Would you like to split it automatically?",
+    partIndicator: "Part {current} of {total}",
+    copied: "copied!",
+    copyNext: "Copy Next Part",
+    splitOptions: {
+      auto: "Auto-split for ChatGPT"
+    },
+    prompts: {
+      none: "",
+      general: "Please provide a summary of this content, highlighting the main points and key takeaways. The output should be in english.",
+      detailed: "Please provide a detailed analysis of this content, including main topics, conclusions, and important details. The output should be in english.",
+      bullet: "Please summarize this content in bullet points, highlighting the key information. The output should be in english.",
+      section: "Please divide this content into main sections and provide a summary for each section. The output should be in english."
+    }
+  },
+  pt: {
+    buttonText: "Copiar Transcrição",
+    loadingText: "Copiando...",
+    successText: (chars) => `Copiado ${formatCharCount(chars)} caracteres!`,
+    errorTooLong: "Esta transcrição é muito longa. Deseja ativar a divisão automática?",
+    partIndicator: "Parte {current} de {total}",
+    copied: "copiado!",
+    copyNext: "Copiar Próxima Parte",
+    splitOptions: {
+      auto: "Divisão automática para ChatGPT"
+    },
+    prompts: {
+      none: "",
+      general: "Por favor, forneça um resumo deste conteúdo, destacando os pontos principais e as conclusões-chave. O output deve ser em português.",
+      detailed: "Por favor, forneça uma análise detalhada deste conteúdo, incluindo tópicos principais, conclusões e detalhes importantes. O output deve ser em português.",
+      bullet: "Por favor, resuma este conteúdo em tópicos, destacando as informações principais. O output deve ser em português.",
+      section: "Por favor, divida este conteúdo em seções principais e forneça um resumo para cada seção. O output deve ser em português."
+    }
+  },
+  es: {
+    buttonText: "Copiar Transcripción",
+    loadingText: "Copiando...",
+    successText: (chars) => `¡Copiado ${formatCharCount(chars)} caracteres!`,
+    errorTooLong: "Esta transcripción es muy larga. ¿Deseas activar la división automática?",
+    partIndicator: "Parte {current} de {total}",
+    copied: "¡copiado!",
+    copyNext: "Copiar Siguiente Parte",
+    splitOptions: {
+      auto: "División automática para ChatGPT"
+    },
+    prompts: {
+      none: "",
+      general: "Por favor, proporciona un resumen de este contenido, destacando los puntos principales y las conclusiones clave. El output debe ser en español.",
+      detailed: "Por favor, proporciona un análisis detallado de este contenido, incluyendo temas principales, conclusiones y detalles importantes. El output debe ser en español.",
+      bullet: "Por favor, resume este contenido en puntos, destacando la información clave. El output debe ser en español.",
+      section: "Por favor, divide este contenido en secciones principales y proporciona un resumen para cada sección. El output debe ser en español."
+    }
+  }
+};
+
+const formatCharCount = (count) => {
+  if (count >= 1000) {
+    return `${Math.round(count / 1000)}k`;
+  }
+  return count.toString();
+};
+
+const addCopyButton = async () => {
+  // Check for existing button by our specific ID
+  const existingButton = document.querySelector("#yt-transcript-copier-button");
   if (existingButton) return;
 
-  // Find the like/dislike/share buttons container
+  const interfaceLanguage = await getInterfaceLanguage();
+  
+  // Find the FIRST like/dislike/share buttons container only
   const buttonsContainer = document.querySelector("#top-level-buttons-computed");
   if (!buttonsContainer) return;
 
   // Create button container to match YouTube's style
   const buttonContainer = document.createElement("div");
   buttonContainer.className = "style-scope ytd-menu-renderer";
-  buttonContainer.style.marginLeft = "8px"; // Add margin for spacing
+  buttonContainer.style.cssText = `
+    margin-left: 8px;
+    margin-right: -7.5px;
+    padding: 0;
+    flex-shrink: 0;
+    display: inline-flex;
+    align-items: center;
+  `;
   
-  // Create button with YouTube's style
+  // Create button with YouTube's style and our specific ID
   const copyButton = document.createElement("button");
-  copyButton.id = "copy-transcription-button";
+  copyButton.id = "yt-transcript-copier-button";
   copyButton.className = "yt-spec-button-shape-next yt-spec-button-shape-next--tonal yt-spec-button-shape-next--mono yt-spec-button-shape-next--size-m yt-spec-button-shape-next--icon-leading";
+  copyButton.style.cssText = `
+    margin: 0;
+    padding-right: 16px;
+  `;
   
+  // Add success animation styles
+  const style = document.createElement('style');
+  style.textContent = `
+    #yt-transcript-copier-button.success {
+      background-color: #2ba640 !important;
+      color: white !important;
+      transition: all 0.3s ease;
+    }
+    #yt-transcript-copier-button.success svg {
+      fill: white !important;
+    }
+    #yt-transcript-copier-button svg {
+      fill: currentColor;
+    }
+  `;
+  document.head.appendChild(style);
+
   // Create icon container
   const iconDiv = document.createElement("div");
   iconDiv.className = "yt-spec-button-shape-next__icon";
@@ -111,93 +232,7 @@ const addCopyButton = () => {
   // Create text container
   const textDiv = document.createElement("div");
   textDiv.className = "yt-spec-button-shape-next__button-text-content";
-  
-  // Add spinner animation
-  const style = document.createElement('style');
-  style.textContent = `
-    @keyframes spin {
-      0% { transform: rotate(0deg); }
-      100% { transform: rotate(360deg); }
-    }
-    #copy-transcription-button.success {
-      background-color: #2ba640 !important;
-      color: white !important;
-    }
-  `;
-  document.head.appendChild(style);
-
-  // Detect page language and set initial button text
-  const pageLang = document.documentElement.lang.split('-')[0] || 'en';
-  const translations = {
-    en: {
-      buttonText: "Copy Transcript",
-      loadingText: "Copying...",
-      successText: (chars) => `Copied ${formatCharCount(chars)} chars!`,
-      prompts: {
-        general: "Summarize the following YouTube video transcript in English, highlighting the main points and key takeaways:",
-        detailed: "Provide a detailed analysis in English of the following YouTube video transcript, including key topics discussed and any conclusions drawn:",
-        bullet: "Summarize the following transcript into concise bullet points in English, emphasizing the most important information:",
-        section: "Divide the following transcript into its main sections and provide a brief summary for each in English:"
-      },
-      splitOptions: {
-        title: "Split Options",
-        auto: "Auto-split for ChatGPT",
-        manual: "Manual split (minutes)",
-        none: "No split"
-      },
-      partIndicator: "Part {current} of {total}",
-      errorTooLong: "Warning: This transcript might be too long for ChatGPT",
-      copied: "copied to clipboard",
-      copyNext: "Copy Next Part",
-      errorTooLong: "This transcript is too long for ChatGPT. Would you like to enable auto-splitting?"
-    },
-    pt: {
-      buttonText: "Copiar Transcrição",
-      loadingText: "Copiando...",
-      successText: (chars) => `Copiado ${formatCharCount(chars)} caracteres!`,
-      prompts: {
-        general: "Resuma em português a seguinte transcrição do vídeo do YouTube, destacando os pontos principais e as principais conclusões:",
-        detailed: "Forneça uma análise detalhada em português da seguinte transcrição do vídeo do YouTube, incluindo os principais tópicos discutidos e quaisquer conclusões tiradas:",
-        bullet: "Resuma em português a seguinte transcrição em tópicos concisos, enfatizando as informações mais importantes:",
-        section: "Divida a seguinte transcrição em suas seções principais e forneça um breve resumo em português para cada uma:"
-      },
-      splitOptions: {
-        title: "Opções de Divisão",
-        auto: "Divisão automática para ChatGPT",
-        manual: "Divisão manual (minutos)",
-        none: "Sem divisão"
-      },
-      partIndicator: "Parte {current} de {total}",
-      errorTooLong: "Aviso: Esta transcrição pode ser muito longa para o ChatGPT",
-      copied: "copiado para a área de transferência",
-      copyNext: "Copiar Próxima Parte",
-      errorTooLong: "Esta transcrição é muito longa para o ChatGPT. Deseja ativar a divisão automática?"
-    },
-    es: {
-      buttonText: "Copiar Transcripción",
-      loadingText: "Copiando...",
-      successText: (chars) => `¡Copiado ${formatCharCount(chars)} caracteres!`,
-      prompts: {
-        general: "Resume en español la siguiente transcripción del video de YouTube, destacando los puntos principales y las conclusiones clave:",
-        detailed: "Proporciona un análisis detallado en español de la siguiente transcripción del video de YouTube, incluyendo los temas clave discutidos y las conclusiones extraídas:",
-        bullet: "Resume en español la siguiente transcripción en puntos concisos, enfatizando la información más importante:",
-        section: "Divide la siguiente transcripción en sus secciones principales y proporciona un breve resumen en español para cada una:"
-      },
-      splitOptions: {
-        title: "Opciones de División",
-        auto: "División automática para ChatGPT",
-        manual: "División manual (minutos)",
-        none: "Sin división"
-      },
-      partIndicator: "Parte {current} de {total}",
-      errorTooLong: "Advertencia: Esta transcripción puede ser demasiado larga para ChatGPT",
-      copied: "copiado al portapapeles",
-      copyNext: "Copiar Siguiente Parte",
-      errorTooLong: "Esta transcripción es demasiado larga para ChatGPT. ¿Desea activar la división automática?"
-    }
-  };
-
-  textDiv.textContent = translations[pageLang]?.buttonText || translations.en.buttonText;
+  textDiv.textContent = translations[interfaceLanguage].buttonText;
 
   // Assemble button
   copyButton.appendChild(iconDiv);
@@ -206,61 +241,12 @@ const addCopyButton = () => {
   
   // Insert button after the share button
   buttonsContainer.appendChild(buttonContainer);
-  
-  // Add this function to split transcript by character limit
-  const getCharLimit = (options) => {
-    if (options.splitType === 'manual') {
-      return options.customCharLimit;
-    }
-    
-    if (options.splitType === 'auto') {
-      switch (options.llmModel) {
-        case 'gpt4':
-          return 400000;
-        case 'gpt35':
-          return 13000;
-        case 'custom':
-          return options.customCharLimit;
-        default:
-          return 13000;
-      }
-    }
-    
-    return Infinity;
-  };
 
-  const splitTranscript = (segments, options) => {
-    const parts = [];
-    let currentPart = [];
-    let currentLength = 0;
-    const maxChars = getCharLimit(options);
-
-    for (const segment of segments) {
-      const timeStr = options.includeTimestamps ? `${segment.time} ` : '';
-      const segmentText = timeStr + segment.text;
-      const segmentLength = segmentText.length + 1; // +1 for newline
-
-      if (currentLength + segmentLength > maxChars && currentPart.length > 0) {
-        parts.push(currentPart.join('\n'));
-        currentPart = [segmentText];
-        currentLength = segmentLength;
-      } else {
-        currentPart.push(segmentText);
-        currentLength += segmentLength;
-      }
-    }
-
-    if (currentPart.length > 0) {
-      parts.push(currentPart.join('\n'));
-    }
-
-    return parts;
-  };
-
+  // Add click event listener
   copyButton.addEventListener("click", async () => {
     try {
       const currentScroll = window.scrollY;
-      textDiv.textContent = translations[pageLang].loadingText;
+      textDiv.textContent = translations[interfaceLanguage].loadingText;
       copyButton.disabled = true;
 
       let transcriptPanel = document.querySelector(
@@ -268,16 +254,43 @@ const addCopyButton = () => {
       );
       
       if (!transcriptPanel) {
-        const transcriptButton = document.querySelector(
-          'button[aria-label="Mostrar transcrição"]'
+        // First try by aria-label in different languages
+        let transcriptButton = document.querySelector(
+          'button[aria-label="Show transcript"], button[aria-label="Mostrar transcrição"], button[aria-label="Mostrar transcripción"]'
         );
+        
+        // If not found by aria-label, try by the exact YouTube class structure
+        if (!transcriptButton) {
+          transcriptButton = document.querySelector(
+            '#button-container ytd-button-renderer button.yt-spec-button-shape-next--outline'
+          );
+          
+          // Additional fallback using more specific selectors
+          if (!transcriptButton) {
+            transcriptButton = document.querySelector(
+              'ytd-video-description-transcript-section-renderer ytd-button-renderer button.yt-spec-button-shape-next'
+            );
+          }
+        }
         
         if (transcriptButton) {
           transcriptButton.click();
-          await new Promise(resolve => setTimeout(resolve, 1000));
-          transcriptPanel = document.querySelector(
-            "ytd-transcript-segment-list-renderer"
-          );
+          // Wait for transcript panel to load
+          await new Promise((resolve) => {
+            const checkPanel = setInterval(() => {
+              const panel = document.querySelector("ytd-transcript-segment-list-renderer");
+              if (panel) {
+                clearInterval(checkPanel);
+                transcriptPanel = panel;
+                resolve();
+              }
+            }, 100);
+            // Timeout after 5 seconds
+            setTimeout(() => {
+              clearInterval(checkPanel);
+              resolve();
+            }, 5000);
+          });
         }
       }
       
@@ -291,120 +304,42 @@ const addCopyButton = () => {
 
         const options = await chrome.storage.sync.get({
           includeTimestamps: true,
-          promptLanguage: pageLang,
+          promptLanguage: 'en',
           promptType: 'none',
           splitType: 'auto',
           llmModel: 'gpt35',
           customCharLimit: 13000
         });
 
-        if (options.splitType === 'none') {
-          // For "No Split", create a single part with the complete transcript
-          const fullText = segments.map(segment => 
-            options.includeTimestamps ? `${segment.time} ${segment.text}` : segment.text
-          ).join('\n');
+        // Create the full text with timestamps if enabled
+        const transcriptText = segments.map(segment => 
+          options.includeTimestamps ? `${segment.time} ${segment.text}` : segment.text
+        ).join('\n');
 
-          let finalText = '';
-          if (options.promptType !== 'none') {
-            finalText += translations[options.promptLanguage].prompts[options.promptType] + '\n\n';
-          }
-          finalText += fullText;
+        // Add the selected prompt if one is chosen
+        const selectedPrompt = translations[options.promptLanguage].prompts[options.promptType];
+        const fullText = selectedPrompt 
+          ? `${selectedPrompt}\n\n${transcriptText}`
+          : transcriptText;
 
-          // Copy the text regardless of length
-          await navigator.clipboard.writeText(finalText);
-          
-          // Show warning if too long, but still copy and animate
-          if (finalText.length > 12000) {
-            notify.show({
-              message: translations[pageLang].errorTooLong,
-              type: 'warning',
-              duration: 5000,
-              actions: [
-                {
-                  label: translations[pageLang].splitOptions.auto,
-                  onClick: () => {
-                    chrome.storage.sync.set({ splitType: 'auto' });
-                    copyButton.click();
-                  }
-                }
-              ]
-            });
-          }
+        await navigator.clipboard.writeText(fullText);
 
-          // Show success animation
-          copyButton.classList.add('success');
-          textDiv.textContent = translations[pageLang].successText(finalText.length);
-          
-          setTimeout(() => {
-            copyButton.classList.remove('success');
-            textDiv.textContent = translations[pageLang].buttonText;
-            copyButton.disabled = false;
-          }, 2000);
-          return;
-        }
-
-        // Both auto and manual now use the same splitting logic
-        parts = splitTranscript(segments, options);
-
-        // Calculate total characters before starting to copy
-        const totalCharacters = parts.reduce((sum, part) => sum + part.length, 0);
-
-        for (let i = 0; i < parts.length; i++) {
-          let finalText = '';
-          
-          if (options.promptType !== 'none') {
-            finalText += translations[options.promptLanguage].prompts[options.promptType] + '\n\n';
-          }
-
-          if (parts.length > 1) {
-            finalText += translations[pageLang].partIndicator
-              .replace('{current}', i + 1)
-              .replace('{total}', parts.length) + '\n\n';
-          }
-
-          finalText += parts[i];
-
-          await navigator.clipboard.writeText(finalText);
-          
-          if (parts.length > 1 && i < parts.length - 1) {
-            await new Promise(resolve => {
-              const notification = notify.show({
-                message: `${translations[pageLang].partIndicator
-                  .replace('{current}', i + 1)
-                  .replace('{total}', parts.length)} ${translations[pageLang].copied}`,
-                duration: 0,
-                actions: [
-                  {
-                    label: translations[pageLang].copyNext,
-                    onClick: () => {
-                      notification.remove();
-                      resolve();
-                    }
-                  }
-                ]
-              });
-            });
-          }
-
-          // Only show success animation on the last part, but with total character count
-          if (i === parts.length - 1) {
-            copyButton.classList.add('success');
-            textDiv.textContent = translations[pageLang].successText(totalCharacters);
-            
-            setTimeout(() => {
-              copyButton.classList.remove('success');
-              textDiv.textContent = translations[pageLang].buttonText;
-              copyButton.disabled = false;
-            }, 2000);
-          }
-        }
+        // Show success animation
+        copyButton.classList.add('success');
+        textDiv.textContent = translations[interfaceLanguage].successText(fullText.length);
+        
+        setTimeout(() => {
+          copyButton.classList.remove('success');
+          textDiv.textContent = translations[interfaceLanguage].buttonText;
+          copyButton.disabled = false;
+        }, 2000);
       }
 
       window.scrollTo(0, currentScroll);
 
     } catch (error) {
       console.error("Error:", error);
-      textDiv.textContent = translations[pageLang].buttonText;
+      textDiv.textContent = translations[interfaceLanguage].buttonText;
       copyButton.disabled = false;
       copyButton.classList.remove('success');
     }
@@ -428,26 +363,29 @@ if (isVideoPage()) {
   }
 }
 
-// Set up observer for dynamic content
-const observer = new MutationObserver(() => {
+// Update the observer to be more specific
+const observer = new MutationObserver((mutations) => {
   if (isVideoPage() && isTranscriptionAvailable()) {
-    console.log('Transcription became available'); // Debug log
-    addCopyButton();
+    // Remove any duplicate buttons first
+    const buttons = document.querySelectorAll("#yt-transcript-copier-button");
+    if (buttons.length > 1) {
+      // Keep only the first button, remove others
+      for (let i = 1; i < buttons.length; i++) {
+        buttons[i].remove();
+      }
+    }
+    // Only add a new button if none exists
+    if (buttons.length === 0) {
+      addCopyButton();
+    }
   }
 });
 
-// Start observing with more specific options
+// Make the observer more specific to reduce unnecessary checks
 observer.observe(document.body, {
   childList: true,
   subtree: true,
-  characterData: true
+  attributes: false,
+  characterData: false
 });
-
-// Add this helper function
-const formatCharCount = (count) => {
-  if (count >= 1000) {
-    return `${Math.round(count / 1000)}k`;
-  }
-  return count.toString();
-};
   

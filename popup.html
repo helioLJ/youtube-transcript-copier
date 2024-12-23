@@ -74,9 +74,19 @@
   </style>
 </head>
 <body>
-  <div class="header">Extension Settings</div>
+  <div class="header" data-i18n="extensionSettings">Extension Settings</div>
+  <div class="interface-language-container">
+    <label data-i18n="interfaceLanguage">
+      Interface Language
+      <select id="interfaceLanguage">
+        <option value="en">English</option>
+        <option value="pt">Português</option>
+        <option value="es">Español</option>
+      </select>
+    </label>
+  </div>
   <div class="language-container">
-    <label>
+    <label data-i18n="promptLanguage">
       Prompt Language
       <select id="promptLanguage">
         <option value="en">English</option>
@@ -86,40 +96,40 @@
     </label>
   </div>
   <div class="prompt-type-container">
-    <label>
+    <label data-i18n="promptType">
       Prompt Type
       <select id="promptType">
-        <option value="none">No Prompt</option>
-        <option value="general">General Summary</option>
-        <option value="detailed">Detailed Analysis</option>
-        <option value="bullet">Bullet Point Summary</option>
-        <option value="section">Section-wise Summary</option>
+        <option value="none" data-i18n="noPrompt">No Prompt</option>
+        <option value="general" data-i18n="generalSummary">General Summary</option>
+        <option value="detailed" data-i18n="detailedAnalysis">Detailed Analysis</option>
+        <option value="bullet" data-i18n="bulletPoints">Bullet Point Summary</option>
+        <option value="section" data-i18n="sectionSummary">Section-wise Summary</option>
       </select>
     </label>
   </div>
   <div class="split-options-container">
-    <label>
+    <label data-i18n="splitOptions">
       Split Options
       <select id="splitType">
-        <option value="auto">Auto-split for LLMs</option>
-        <option value="none">No split</option>
+        <option value="auto" data-i18n="autoSplit">Auto-split for LLMs</option>
+        <option value="none" data-i18n="noSplit">No split</option>
       </select>
     </label>
   </div>
 
   <div id="modelContainer" class="model-container hidden">
-    <label>
+    <label data-i18n="llmModel">
       LLM Model
       <select id="llmModel">
-        <option value="gpt4">GPT-4 (400k chars)</option>
-        <option value="gpt35">GPT-3.5 (13k chars)</option>
-        <option value="custom">Custom limit</option>
+        <option value="gpt4" data-i18n="gpt4">GPT-4 (400k chars)</option>
+        <option value="gpt35" data-i18n="gpt35">GPT-3.5 (13k chars)</option>
+        <option value="custom" data-i18n="customLimitOption">Custom limit</option>
       </select>
     </label>
   </div>
 
   <div id="customLimitContainer" class="char-limit-container hidden">
-    <label>
+    <label data-i18n="characterLimit">
       Character Limit
       <input type="number" id="customCharLimit" min="1000" max="1000000" value="13000">
     </label>
@@ -128,7 +138,7 @@
   <div class="option-container">
     <label>
       <input type="checkbox" id="includeTimestamps">
-      Include timestamps in copied text
+      <span data-i18n="includeTimestamps">Include timestamps in copied text</span>
     </label>
   </div>
 
