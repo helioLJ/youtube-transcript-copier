@@ -1,127 +1,93 @@
-# YouTube Transcript Copier
+# YouTube Transcript Copier 🎥
 
-A Chrome extension that enhances YouTube's transcript functionality by adding a convenient "Copy Transcript" button alongside the video's interaction buttons (like, dislike, share).
+A Chrome extension that enhances YouTube's transcript functionality by adding a convenient "Copy Transcript" button alongside the video's interaction buttons (like, dislike, share). Perfect for content creators, researchers, and anyone working with AI language models.
 
-## Features
+<p align="center">
+  <img src="store_assets/demo.gif" alt="Demo of YouTube Transcript Copier in action">
+</p>
 
-### Core Functionality
-- 🎯 Adds a "Copy Transcript" button in YouTube's native style
-- 📋 One-click transcript copying
-- 🔄 Works with dynamically loaded content
-- 📊 Shows character count in a readable format (e.g., "15k chars")
+## ✨ Features
 
-### Smart Transcript Handling
-- 🔄 Intelligent splitting options:
-  - **Auto-split for LLMs**: Automatically splits transcripts based on model limits
-    - GPT-4 (400k characters)
-    - GPT-3.5 (13k characters)
-    - Custom limit (user-defined)
-  - **No split**: Copy entire transcript with length warning
-- ⚡ Modern notification system for multi-part copying
-- ⏰ Optional timestamps inclusion
-- 🎨 Smooth animations and visual feedback
+### 🎯 Core Functionality
+- One-click transcript copying with YouTube-native UI integration
+- Smart character count display (e.g., "15k chars")
+- Seamless integration with YouTube's interface
+- Works with dynamically loaded content
 
-### Customization Options
-- 🌐 Multi-language Support:
+### 🤖 AI-Ready Features
+- **Smart Splitting for AI Models**:
+  - GPT-4 (400k chars)
+  - GPT-3.5 (13k chars)
+  - Custom character limits
+- **AI-Friendly Prompt Templates**:
+  - General Summary
+  - Detailed Analysis
+  - Bullet Points
+  - Section-wise Summary
+
+### 🌍 Accessibility & Customization
+- **Multi-language Support**:
   - English
   - Portuguese
   - Spanish
-  - Automatically detects YouTube interface language
-  - Configurable prompt language
+  - Auto-detects YouTube interface language
+- **Flexible Options**:
+  - Optional timestamps inclusion
+  - Customizable prompt language
+  - Adjustable character limits
 
-### AI-Friendly Prompt Types
-Choose from different AI-friendly prompt templates:
-1. **General Summary**: Request a summary highlighting main points and key takeaways
-2. **Detailed Analysis**: Ask for an in-depth analysis of topics and conclusions
-3. **Bullet Point Summary**: Get the transcript summarized in concise bullet points
-4. **Section-wise Summary**: Request the content divided into main sections with summaries
+## 🚀 Installation
 
-### User Experience
-- 🎨 YouTube-styled UI integration
-- ✨ Smooth animations and feedback
-- 📱 Responsive design
-- 🔔 Modern notification system for:
-  - Long transcript warnings
-  - Multi-part copy progress
-  - Success confirmations
-- 📝 Character count display with 'k' formatting (e.g., "15k")
-
-## Installation
-
-1. Download or clone this repository
-2. Open Chrome and navigate to `chrome://extensions/`
-3. Enable "Developer mode" in the top right
+1. Download the latest release or clone this repository
+2. Open Chrome and go to `chrome://extensions/`
+3. Enable "Developer mode" (top right)
 4. Click "Load unpacked" and select the extension directory
 
-## Usage
+## 📖 Usage
 
 1. Navigate to any YouTube video with available transcripts
-2. Click the "Copy Transcript" button next to the share button
-3. Configure your preferences:
-   - Choose split mode (Auto-split/No split)
-   - Select LLM model or set custom character limit
-   - Choose prompt type
-   - Toggle timestamps
-   - Select language
+2. Look for the "Copy Transcript" button next to the share button
+3. Click to copy with your configured settings
 
-### Configuration
-Click the extension icon to access settings:
-- **Split Options**:
-  - Auto-split for LLMs
-    - GPT-4 (400k chars)
-    - GPT-3.5 (13k chars)
-    - Custom character limit
-  - No split (with length warning)
-- **Prompt Types**: Choose from various AI-friendly templates
-- **Language Settings**: Interface and prompt language options
-- **Timestamp Toggle**: Include/exclude timestamps
+### ⚙️ Configuration
+Access settings via the extension popup:
+- Language preferences
+- AI prompt templates
+- Splitting options
+- Character limits
+- Timestamp toggles
 
-## Technical Details
+## 🛠️ Technical Details
 
-### Permissions Required
-- `clipboardWrite`: For copying text to clipboard
-- `storage`: For saving user preferences
-- `host_permissions`: Limited to YouTube.com
-
-### Browser Compatibility
+### Browser Support
 - Chrome/Chromium-based browsers
 - Manifest V3 compliant
 
-### Features Implementation
-- Smart character-based transcript splitting
-- LLM-specific character limits
-- Modern notification system replacing traditional alerts
-- Intelligent character count formatting (k format)
-- Multi-language support with automatic detection
-- Customizable AI prompts
+### Required Permissions
+- `clipboardWrite`: For copying text
+- `storage`: For user preferences
+- `host_permissions`: YouTube.com only
 
-## Development
+## 🤝 Contributing
 
-Built using:
-- JavaScript
-- Chrome Extension APIs
-- YouTube's native styling
+Contributions are welcome! Please feel free to submit a Pull Request. For major changes, please open an issue first to discuss what you would like to change.
 
-### File Structure
-```bash
-.
-├── content.js
-├── icon128.png
-├── icon16.png
-├── icon48.png
-├── manifest.json
-├── popup.html
-├── popup.js
-├── README.md
+## 📜 License
 
-2 directories, 12 files
-```
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
+## 🔒 Privacy
 
-## Contributing
+This extension:
+- Does not collect any personal data
+- Stores preferences locally only
+- Does not use analytics or tracking
+- Does not share data with third parties
 
-Feel free to submit issues and enhancement requests!
+See [PRIVACY.md](PRIVACY.md) for details.
 
-## License
+---
 
-This project is licensed under the MIT License - see the LICENSE file for details.
+<p align="center">
+  Made with ❤️ for YouTube users and AI enthusiasts
+</p>
