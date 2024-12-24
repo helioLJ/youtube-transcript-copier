@@ -8,6 +8,7 @@ const getInterfaceLanguage = async () => {
   return result.interfaceLanguage;
 };
 
+// Create notification system
 const createNotificationSystem = () => {
   const notificationContainer = document.createElement('div');
   notificationContainer.style.cssText = `
@@ -23,7 +24,6 @@ const createNotificationSystem = () => {
 
   return {
     show: async ({ message, type = 'info', duration = 3000, actions = [] }) => {
-      const interfaceLanguage = await getInterfaceLanguage();
       const notification = document.createElement('div');
       notification.style.cssText = `
         background-color: ${type === 'warning' ? '#ffd700' : '#2ba640'};
@@ -88,7 +88,7 @@ const createNotificationSystem = () => {
 };
 
 // Initialize notification system
-const notify = createNotificationSystem();
+const notify = createNotificationSystem().show;
 
 // Listen for changes in storage
 chrome.storage.onChanged.addListener((changes, namespace) => {
@@ -172,178 +172,181 @@ const formatCharCount = (count) => {
 };
 
 const addCopyButton = async () => {
-  // Check for existing button by our specific ID
   const existingButton = document.querySelector("#yt-transcript-copier-button");
   if (existingButton) return;
 
   const interfaceLanguage = await getInterfaceLanguage();
   
-  // Find the FIRST like/dislike/share buttons container only
+  // Find the buttons container
   const buttonsContainer = document.querySelector("#top-level-buttons-computed");
   if (!buttonsContainer) return;
 
-  // Create button container to match YouTube's style
-  const buttonContainer = document.createElement("div");
-  buttonContainer.className = "style-scope ytd-menu-renderer";
-  buttonContainer.style.cssText = `
-    margin-left: 8px;
-    margin-right: -7.5px;
-    padding: 0;
-    flex-shrink: 0;
-    display: inline-flex;
-    align-items: center;
-  `;
-  
-  // Create button with YouTube's style and our specific ID
+  // Create the button
   const copyButton = document.createElement("button");
   copyButton.id = "yt-transcript-copier-button";
-  copyButton.className = "yt-spec-button-shape-next yt-spec-button-shape-next--tonal yt-spec-button-shape-next--mono yt-spec-button-shape-next--size-m yt-spec-button-shape-next--icon-leading";
-  copyButton.style.cssText = `
-    margin: 0;
-    padding-right: 16px;
-  `;
+  copyButton.className = "yt-spec-button-shape-next yt-spec-button-shape-next--tonal yt-spec-button-shape-next--mono yt-spec-button-shape-next--size-m yt-spec-button-shape-next--icon-button";
+  copyButton.setAttribute("aria-label", "Copy Transcript");
+  copyButton.style.marginRight = "8px"; // Add right margin
   
-  // Add success animation styles
-  const style = document.createElement('style');
-  style.textContent = `
-    #yt-transcript-copier-button.success {
-      background-color: #2ba640 !important;
-      color: white !important;
-      transition: all 0.3s ease;
-    }
-    #yt-transcript-copier-button.success svg {
-      fill: white !important;
-    }
-    #yt-transcript-copier-button svg {
-      fill: currentColor;
-    }
-  `;
-  document.head.appendChild(style);
-
-  // Create icon container
-  const iconDiv = document.createElement("div");
-  iconDiv.className = "yt-spec-button-shape-next__icon";
-  iconDiv.innerHTML = `
-    <svg height="24" viewBox="0 0 24 24" width="24" focusable="false">
-      <path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"></path>
-    </svg>
+  // Set icon-only button HTML
+  copyButton.innerHTML = `
+    <div class="yt-spec-button-shape-next__icon" aria-hidden="true">
+      <svg height="24" viewBox="0 0 24 24" width="24" focusable="false">
+        <path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"></path>
+      </svg>
+    </div>
   `;
 
-  // Create text container
-  const textDiv = document.createElement("div");
-  textDiv.className = "yt-spec-button-shape-next__button-text-content";
-  textDiv.textContent = translations[interfaceLanguage].buttonText;
-
-  // Assemble button
-  copyButton.appendChild(iconDiv);
-  copyButton.appendChild(textDiv);
-  buttonContainer.appendChild(copyButton);
-  
-  // Insert button after the share button
-  buttonsContainer.appendChild(buttonContainer);
+  // Insert as first child of the buttons container
+  buttonsContainer.insertBefore(copyButton, buttonsContainer.firstChild);
 
   // Add click event listener
   copyButton.addEventListener("click", async () => {
-    try {
-      const currentScroll = window.scrollY;
-      textDiv.textContent = translations[interfaceLanguage].loadingText;
-      copyButton.disabled = true;
+    // Get current settings
+    const settings = await chrome.storage.sync.get({
+      includeTimestamps: true,
+      promptLanguage: 'en',
+      promptType: 'none',
+      splitType: 'auto',
+      llmModel: 'gpt35',
+      customCharLimit: 13000
+    });
 
-      let transcriptPanel = document.querySelector(
-        "ytd-transcript-segment-list-renderer"
-      );
-      
-      if (!transcriptPanel) {
-        // First try by aria-label in different languages
-        let transcriptButton = document.querySelector(
-          'button[aria-label="Show transcript"], button[aria-label="Mostrar transcrição"], button[aria-label="Mostrar transcripción"]'
-        );
+    // Find and click the transcript button if it exists
+    const transcriptButton = document.querySelector("ytd-video-description-transcript-section-renderer button");
+    if (transcriptButton) {
+      transcriptButton.click();
+    }
+
+    // Wait for transcript panel to open and content to load
+    await new Promise(resolve => setTimeout(resolve, 1000));
+
+    // Get transcript text
+    const transcriptItems = document.querySelectorAll("ytd-transcript-segment-renderer");
+    if (transcriptItems.length === 0) {
+      console.error("No transcript found");
+      return;
+    }
+
+    // Build transcript text with optional timestamps
+    const transcriptText = Array.from(transcriptItems)
+      .map(segment => {
+        const textElement = segment.querySelector("[class*='segment-text']") || 
+                           segment.querySelector("#content") ||
+                           segment.querySelector("#text");
+        const timestampElement = segment.querySelector("[class*='segment-timestamp']") ||
+                                segment.querySelector("#timestamp");
         
-        // If not found by aria-label, try by the exact YouTube class structure
-        if (!transcriptButton) {
-          transcriptButton = document.querySelector(
-            '#button-container ytd-button-renderer button.yt-spec-button-shape-next--outline'
-          );
+        const text = textElement ? textElement.textContent.trim() : '';
+        const timestamp = timestampElement ? timestampElement.textContent.trim() : '';
+        
+        return settings.includeTimestamps ? `${timestamp} ${text}` : text;
+      })
+      .filter(text => text)
+      .join("\n");
+
+    // Add prompt if selected
+    let finalText = transcriptText;
+    if (settings.promptType !== 'none') {
+      const prompt = translations[settings.promptLanguage].prompts[settings.promptType];
+      finalText = `${prompt}\n\n${transcriptText}`;
+    }
+
+    // Handle text splitting if auto-split is enabled
+    if (settings.splitType === 'auto') {
+      const charLimit = settings.llmModel === 'gpt4' ? 400000 :
+                       settings.llmModel === 'gpt35' ? 13000 :
+                       settings.customCharLimit;
+
+      if (finalText.length > charLimit) {
+        const parts = splitText(finalText, charLimit);
+        let currentPart = 0;
+
+        const copyNextPart = async () => {
+          await navigator.clipboard.writeText(parts[currentPart]);
           
-          // Additional fallback using more specific selectors
-          if (!transcriptButton) {
-            transcriptButton = document.querySelector(
-              'ytd-video-description-transcript-section-renderer ytd-button-renderer button.yt-spec-button-shape-next'
-            );
+          if (currentPart < parts.length - 1) {
+            notify({
+              message: translations[settings.promptLanguage].partIndicator
+                .replace('{current}', currentPart + 1)
+                .replace('{total}', parts.length),
+              type: 'info',
+              duration: 0,
+              actions: [{
+                label: translations[settings.promptLanguage].copyNext,
+                onClick: () => {
+                  currentPart++;
+                  copyNextPart();
+                }
+              }]
+            });
+          } else {
+            notify({
+              message: translations[settings.promptLanguage].successText(finalText.length),
+              type: 'success'
+            });
           }
-        }
-        
-        if (transcriptButton) {
-          transcriptButton.click();
-          // Wait for transcript panel to load
-          await new Promise((resolve) => {
-            const checkPanel = setInterval(() => {
-              const panel = document.querySelector("ytd-transcript-segment-list-renderer");
-              if (panel) {
-                clearInterval(checkPanel);
-                transcriptPanel = panel;
-                resolve();
-              }
-            }, 100);
-            // Timeout after 5 seconds
-            setTimeout(() => {
-              clearInterval(checkPanel);
-              resolve();
-            }, 5000);
-          });
-        }
+        };
+
+        // Start copying the first part immediately
+        copyNextPart();
+        return;
       }
-      
-      if (transcriptPanel) {
-        const segments = Array.from(transcriptPanel.querySelectorAll(
-          "ytd-transcript-segment-renderer"
-        )).map(segment => ({
-          time: segment.querySelector(".segment-timestamp")?.textContent.trim() || "",
-          text: segment.querySelector(".segment-text")?.textContent.trim() || ""
-        }));
+    }
 
-        const options = await chrome.storage.sync.get({
-          includeTimestamps: true,
-          promptLanguage: 'en',
-          promptType: 'none',
-          splitType: 'auto',
-          llmModel: 'gpt35',
-          customCharLimit: 13000
-        });
-
-        // Create the full text with timestamps if enabled
-        const transcriptText = segments.map(segment => 
-          options.includeTimestamps ? `${segment.time} ${segment.text}` : segment.text
-        ).join('\n');
-
-        // Add the selected prompt if one is chosen
-        const selectedPrompt = translations[options.promptLanguage].prompts[options.promptType];
-        const fullText = selectedPrompt 
-          ? `${selectedPrompt}\n\n${transcriptText}`
-          : transcriptText;
-
-        await navigator.clipboard.writeText(fullText);
-
-        // Show success animation
-        copyButton.classList.add('success');
-        textDiv.textContent = translations[interfaceLanguage].successText(fullText.length);
-        
-        setTimeout(() => {
-          copyButton.classList.remove('success');
-          textDiv.textContent = translations[interfaceLanguage].buttonText;
-          copyButton.disabled = false;
-        }, 2000);
-      }
-
-      window.scrollTo(0, currentScroll);
-
-    } catch (error) {
-      console.error("Error:", error);
-      textDiv.textContent = translations[interfaceLanguage].buttonText;
-      copyButton.disabled = false;
-      copyButton.classList.remove('success');
+    // Copy to clipboard if no splitting needed
+    try {
+      await navigator.clipboard.writeText(finalText);
+      notify({
+        message: translations[settings.promptLanguage].successText(finalText.length),
+        type: 'success'
+      });
+    } catch (err) {
+      console.error("Failed to copy transcript:", err);
     }
   });
+};
+
+// Helper function to split text
+const splitText = (text, limit) => {
+  const parts = [];
+  let currentPart = '';
+  const sentences = text.split(/(?<=[.!?])\s+/);
+
+  for (const sentence of sentences) {
+    if ((currentPart + sentence).length > limit) {
+      if (currentPart) {
+        parts.push(currentPart.trim());
+        currentPart = '';
+      }
+      if (sentence.length > limit) {
+        // Handle very long sentences by splitting at spaces
+        const words = sentence.split(/\s+/);
+        let chunk = '';
+        for (const word of words) {
+          if ((chunk + ' ' + word).length > limit) {
+            parts.push(chunk.trim());
+            chunk = word;
+          } else {
+            chunk = chunk ? chunk + ' ' + word : word;
+          }
+        }
+        if (chunk) {
+          currentPart = chunk + ' ';
+        }
+      } else {
+        currentPart = sentence + ' ';
+      }
+    } else {
+      currentPart += sentence + ' ';
+    }
+  }
+
+  if (currentPart) {
+    parts.push(currentPart.trim());
+  }
+
+  return parts;
 };
 
 // Function to check if we're on a video page
