@@ -1,4 +1,43 @@
-console.log('Content script loaded'); // Debug log
+console.log('Content script loaded for YouTube Transcript Copier v1.0'); // Debug log
+
+// Debug function to check current page state
+const debugPageState = () => {
+  console.log('=== YouTube Transcript Copier Debug ===');
+  console.log('Current URL:', window.location.href);
+  console.log('Is video page:', isVideoPage());
+  console.log('Transcript available:', isTranscriptionAvailable());
+  console.log('Existing button:', !!document.querySelector("#yt-transcript-copier-button"));
+  
+  // Check for transcript button variants
+  const transcriptButtons = [
+    "button[aria-label*='transcript']",
+    "button[aria-label*='Transcript']", 
+    "button[aria-label*='transcrição']",
+    "button[aria-label*='transcripción']",
+    "ytd-video-description-transcript-section-renderer button"
+  ];
+  
+  transcriptButtons.forEach(selector => {
+    const elements = document.querySelectorAll(selector);
+    if (elements.length > 0) {
+      console.log(`Found transcript button with selector "${selector}":`, elements[0]);
+    }
+  });
+  
+  // Check for button containers
+  const containers = [
+    "#top-level-buttons-computed",
+    "#menu-container #top-level-buttons",
+    "#actions #top-level-buttons-computed"
+  ];
+  
+  containers.forEach(selector => {
+    const container = document.querySelector(selector);
+    console.log(`Container "${selector}":`, !!container);
+  });
+  
+  console.log('=======================================');
+};
 
 // Get interface language from storage
 const getInterfaceLanguage = async () => {
@@ -177,9 +216,25 @@ const addCopyButton = async () => {
 
   const interfaceLanguage = await getInterfaceLanguage();
   
-  // Find the buttons container
-  const buttonsContainer = document.querySelector("#top-level-buttons-computed");
-  if (!buttonsContainer) return;
+  // Try multiple possible button containers
+  const possibleContainers = [
+    "#top-level-buttons-computed",
+    "#menu-container #top-level-buttons",
+    ".ytd-menu-renderer #top-level-buttons-computed",
+    "#actions #top-level-buttons-computed",
+    "#actions-inner #top-level-buttons-computed"
+  ];
+  
+  let buttonsContainer = null;
+  for (const selector of possibleContainers) {
+    buttonsContainer = document.querySelector(selector);
+    if (buttonsContainer) break;
+  }
+  
+  if (!buttonsContainer) {
+    console.log("Could not find buttons container");
+    return;
+  }
 
   // Create the button
   const copyButton = document.createElement("button");
@@ -213,7 +268,23 @@ const addCopyButton = async () => {
     });
 
     // Find and click the transcript button if it exists
-    const transcriptButton = document.querySelector("ytd-video-description-transcript-section-renderer button");
+    const transcriptSelectors = [
+      "ytd-video-description-transcript-section-renderer button",
+      "button[aria-label*='transcript']",
+      "button[aria-label*='Transcript']",
+      "button[aria-label*='transcrição']",
+      "button[aria-label*='transcripción']",
+      "[aria-label*='Show transcript']",
+      "[aria-label*='Mostrar transcrição']",
+      "[aria-label*='Mostrar transcripción']"
+    ];
+    
+    let transcriptButton = null;
+    for (const selector of transcriptSelectors) {
+      transcriptButton = document.querySelector(selector);
+      if (transcriptButton) break;
+    }
+    
     if (transcriptButton) {
       transcriptButton.click();
     }
@@ -221,12 +292,30 @@ const addCopyButton = async () => {
     // Wait for transcript panel to open and content to load
     await new Promise(resolve => setTimeout(resolve, 1000));
 
-    // Get transcript text
-    const transcriptItems = document.querySelectorAll("ytd-transcript-segment-renderer");
+    // Get transcript text with better error handling
+    const transcriptSegmentSelectors = [
+      "ytd-transcript-segment-renderer",
+      ".ytd-transcript-segment-renderer",
+      "[role='button'] .ytd-transcript-segment-renderer"
+    ];
+    
+    let transcriptItems = [];
+    for (const selector of transcriptSegmentSelectors) {
+      transcriptItems = document.querySelectorAll(selector);
+      if (transcriptItems.length > 0) break;
+    }
+    
     if (transcriptItems.length === 0) {
-      console.error("No transcript found");
+      console.error("No transcript segments found. Available selectors:", 
+        transcriptSegmentSelectors.map(s => document.querySelectorAll(s).length));
+      notify({
+        message: "No transcript found. Make sure transcripts are available for this video.",
+        type: 'warning'
+      });
       return;
     }
+    
+    console.log(`Found ${transcriptItems.length} transcript segments`); // Debug log
 
     // Build transcript text with optional timestamps
     const transcriptText = Array.from(transcriptItems)
@@ -354,20 +443,72 @@ const isVideoPage = () => window.location.pathname.includes('/watch');
 
 // Function to check if transcription is available
 const isTranscriptionAvailable = () => {
-  return !!document.querySelector("button[aria-label='Mostrar transcrição']");
+  // Check for transcript button with various language labels
+  const transcriptSelectors = [
+    "button[aria-label*='transcript']",
+    "button[aria-label*='Transcript']", 
+    "button[aria-label*='transcrição']",
+    "button[aria-label*='transcripción']",
+    "button[aria-label*='transkription']",
+    "button[aria-label*='字幕']",
+    "ytd-video-description-transcript-section-renderer button",
+    "[aria-label*='Show transcript']",
+    "[aria-label*='Mostrar transcrição']",
+    "[aria-label*='Mostrar transcripción']"
+  ];
+  
+  return transcriptSelectors.some(selector => document.querySelector(selector));
 };
 
-// Initial check
-if (isVideoPage()) {
-  console.log('Video page detected'); // Debug log
-  if (isTranscriptionAvailable()) {
-    console.log('Transcription button found'); // Debug log
-    addCopyButton();
+// Initial check with retry mechanism
+const initializeButton = () => {
+  debugPageState(); // Debug current state
+  
+  if (isVideoPage()) {
+    console.log('Video page detected'); // Debug log
+    
+    // Wait for page to fully load, then check multiple times
+    const checkTranscript = (attempt = 0) => {
+      if (attempt > 10) {
+        console.log('Max attempts reached, transcript may not be available');
+        return;
+      }
+      
+      if (isTranscriptionAvailable()) {
+        console.log('Transcription button found'); // Debug log
+        addCopyButton();
+      } else {
+        console.log(`Transcript check attempt ${attempt + 1}/10`); // Debug log
+        setTimeout(() => checkTranscript(attempt + 1), 1000); // Retry every second
+      }
+    };
+    
+    // Start checking after a brief delay
+    setTimeout(() => checkTranscript(), 2000);
   }
-}
+};
 
-// Update the observer to be more specific
+// Add manual debug function accessible from console
+window.debugYouTubeTranscriptCopier = debugPageState;
+
+initializeButton();
+
+// Update the observer to be more specific and handle navigation
 const observer = new MutationObserver((mutations) => {
+  // Check for URL changes (YouTube is a SPA)
+  if (window.location.href !== observer.lastUrl) {
+    observer.lastUrl = window.location.href;
+    if (isVideoPage()) {
+      // New video loaded, reinitialize
+      setTimeout(() => {
+        if (isTranscriptionAvailable()) {
+          addCopyButton();
+        }
+      }, 3000); // Wait longer for new video to load
+    }
+  }
+  
+  // Also check if transcript becomes available on current page
   if (isVideoPage() && isTranscriptionAvailable()) {
     // Remove any duplicate buttons first
     const buttons = document.querySelectorAll("#yt-transcript-copier-button");
@@ -383,6 +524,9 @@ const observer = new MutationObserver((mutations) => {
     }
   }
 });
+
+// Initialize the observer's URL tracking
+observer.lastUrl = window.location.href;
 
 // Make the observer more specific to reduce unnecessary checks
 observer.observe(document.body, {
